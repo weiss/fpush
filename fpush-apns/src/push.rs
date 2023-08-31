@@ -47,10 +47,12 @@ impl FpushApns {
 #[async_trait]
 impl PushTrait for FpushApns {
     #[inline(always)]
-    async fn send(&self, token: String) -> PushResult<()> {
+    async fn send(&self, token: String, body: Option<String>) -> PushResult<()> {
+        let push_title = "New Message".to_string();
+        let push_body = body.unwrap_or("New Message?".to_string());
         let notification_builder = DefaultNotificationBuilder::new()
-            .set_title("New Message")
-            .set_body("New Message?")
+            .set_title(&push_title)
+            .set_body(&push_body)
             .set_mutable_content()
             .set_sound("default");
         let payload = notification_builder.build(

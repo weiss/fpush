@@ -95,9 +95,14 @@ impl FpushPush {
     }
 
     #[inline(always)]
-    pub async fn push(&self, module_id: &str, token: String) -> PushRequestResult<()> {
+    pub async fn push(
+        &self,
+        module_id: &str,
+        token: String,
+        body: Option<String>,
+    ) -> PushRequestResult<()> {
         if let Some(push_module) = self.push_modules.get(module_id) {
-            handle_push_request(push_module.value(), token).await
+            handle_push_request(push_module.value(), token, body).await
         } else {
             debug!("Unknown push_module requested: {}", module_id);
             Err(PushRequestError::UnknownPushModule)

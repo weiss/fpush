@@ -15,7 +15,7 @@ impl FpushDemoPush {
 
 #[async_trait]
 impl PushTrait for FpushDemoPush {
-    async fn send(&self, _token: String) -> PushResult<()> {
+    async fn send(&self, _token: String, _body: Option<String>) -> PushResult<()> {
         let wait_time;
         let return_code;
         {

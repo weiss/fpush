@@ -16,5 +16,5 @@ pub enum PushError {
 #[async_trait]
 pub trait PushTrait {
     /// returns false if the token should be blocked
-    async fn send(&self, token: String) -> PushResult<()>;
+    async fn send(&self, token: String, body: Option<String>) -> PushResult<()>;
 }

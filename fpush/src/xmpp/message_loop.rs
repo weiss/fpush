@@ -11,7 +11,10 @@ use log::{debug, error, info, warn};
 
 use tokio::sync::mpsc;
 use tokio_xmpp::Component;
-use xmpp_parsers::{iq::Iq, pubsub::PubSub, Element, Jid};
+use xmpp_parsers::{
+    data_forms::DataForm, iq::Iq, pubsub::pubsub::Item, pubsub::pubsub::Publish, pubsub::PubSub,
+    Element, Jid,
+};
 
 pub(crate) async fn init_component_connection(config: &FpushConfig) -> Result<Component> {
     let component = Component::new(
@@ -112,8 +115,8 @@ async fn handle_iq(conn: &mpsc::Sender<Iq>, push_modules: FpushPushArc, stanza: 
                     return;
                 }
             };
-            let (module_id, token) = match parse_token_and_module_id(iq_payload) {
-                Ok((module_id, token)) => (module_id, token),
+            let (module_id, token, body) = match parse_token_and_module_id(iq_payload) {
+                Ok((module_id, token, body)) => (module_id, token, body),
                 Err(e) => {
                     warn!(
                         "Could not retrieve token or module_id: {} source: {}",
@@ -128,7 +131,7 @@ async fn handle_iq(conn: &mpsc::Sender<Iq>, push_modules: FpushPushArc, stanza: 
                 module_id, from, token
             );
             // handle_push_request
-            let push_result = push_modules.push(&module_id, token.clone()).await;
+            let push_result = push_modules.push(&module_id, token.clone(), body).await;
             handle_push_result(conn, &module_id, &token, &push_result, from, to, iq.id).await
         }
     }
@@ -174,17 +177,21 @@ async fn handle_push_result(
 }
 
 #[inline(always)]
-fn parse_token_and_module_id(iq_payload: Element) -> Result<(String, String)> {
+fn parse_token_and_module_id(iq_payload: Element) -> Result<(String, String, Option<String>)> {
     if let Ok(pubsub) = PubSub::try_from(iq_payload) {
         match pubsub {
             PubSub::Publish {
                 publish: pubsub_payload,
                 publish_options: None,
-            } => Ok(("default".to_string(), pubsub_payload.node.0)),
+            } => {
+                let Publish { node, items } = pubsub_payload;
+                Ok(("default".to_string(), node.0, parse_body(items)))
+            }
             PubSub::Publish {
                 publish: pubsub_payload,
                 publish_options: Some(publish_options),
             } => {
+                let Publish { node, items } = pubsub_payload;
                 if let Some(data_forms) = publish_options.form {
                     if data_forms.fields.len() > 5 {
                         return Err(Error::PubSubToManyPublishOptions);
@@ -195,18 +202,36 @@ fn parse_token_and_module_id(iq_payload: Element) -> Result<(String, String)> {
                                 return Err(Error::PubSubInvalidPushModuleConfiguration);
                             }
                             if let Some(push_module_id) = field.values.first() {
-                                return Ok((push_module_id.to_string(), pubsub_payload.node.0));
+                                return Ok((push_module_id.to_string(), node.0, parse_body(items)));
                             } else {
                                 unreachable!();
                             }
                         }
                     }
                 }
-                Ok(("default".to_string(), pubsub_payload.node.0))
+                Ok(("default".to_string(), node.0, parse_body(items)))
             }
             _ => Err(Error::PubSubNonPublish),
         }
     } else {
         Err(Error::PubSubInvalidFormat)
     }
+}
+
+#[inline(always)]
+fn parse_body(pubsub_items: Vec<Item>) -> Option<String> {
+    // Probably overkill to not just check for the first() item:
+    let notification = pubsub_items.iter().find_map(|item| {
+        item.payload
+            .as_ref()
+            .filter(|payload| payload.is("notification", "urn:xmpp:push:0"))
+    })?;
+    let x = notification.get_child("x", "jabber:x:data")?;
+    let data_form = DataForm::try_from(x.to_owned()).ok()?;
+    let body_field = data_form
+        .fields
+        .iter()
+        .find(|field| field.var == "last-message-body")?;
+    debug!("Found last-message-body field: {:?}", body_field);
+    body_field.values.first().cloned()
 }

@@ -9,6 +9,7 @@ use log::{info, warn};
 pub async fn handle_push_request(
     push_module: &PushModuleEnum,
     token: String,
+    body: Option<String>,
 ) -> PushRequestResult<()> {
     if push_module.blocklist().is_blocked(&token) {
         return Err(PushRequestError::TokenBlocked);
@@ -18,7 +19,7 @@ pub async fn handle_push_request(
         .lookup_ratelimit(token.to_string())
         .await
     {
-        match push_module.send(token.to_string()).await {
+        match push_module.send(token.to_string(), body).await {
             Ok(()) => {
                 info!(
                     "{}: Send push message to token {}",

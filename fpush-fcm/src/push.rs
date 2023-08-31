@@ -4,7 +4,7 @@ use fpush_traits::push::{PushError, PushResult, PushTrait};
 
 use async_trait::async_trait;
 use google_fcm1::{
-    api::{Message, SendMessageRequest},
+    api::{Message, Notification, SendMessageRequest},
     oauth2, FirebaseCloudMessaging,
 };
 use log::{error, warn};
@@ -87,9 +87,9 @@ enum FcmErrorCode {
 #[async_trait]
 impl PushTrait for FpushFcm {
     #[inline(always)]
-    async fn send(&self, token: String) -> PushResult<()> {
+    async fn send(&self, token: String, body: Option<String>) -> PushResult<()> {
         let req = SendMessageRequest {
-            message: Some(create_push_message(token)),
+            message: Some(create_push_message(token, body)),
             validate_only: None,
         };
 
@@ -122,10 +122,15 @@ impl PushTrait for FpushFcm {
 }
 
 #[inline(always)]
-fn create_push_message(token: String) -> Message {
+fn create_push_message(token: String, body: Option<String>) -> Message {
     Message {
         data: Some(HashMap::new()),
         token: Some(token),
+        notification: Some(Notification {
+            body,
+            image: None,
+            title: None,
+        }),
         ..Default::default()
     }
 }

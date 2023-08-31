@@ -24,14 +24,14 @@ pub enum PushModuleEnum {
 impl PushModuleEnum {
     /// dispatch
     #[inline(always)]
-    pub async fn send(&self, token: String) -> PushResult<()> {
+    pub async fn send(&self, token: String, body: Option<String>) -> PushResult<()> {
         match self {
             #[cfg(feature = "enable_apns_support")]
-            PushModuleEnum::Apple(push_module) => push_module.send(token).await,
+            PushModuleEnum::Apple(push_module) => push_module.send(token, body).await,
             #[cfg(feature = "enable_fcm_support")]
-            PushModuleEnum::Google(push_module) => push_module.send(token).await,
+            PushModuleEnum::Google(push_module) => push_module.send(token, body).await,
             #[cfg(feature = "enable_demo_support")]
-            PushModuleEnum::Demo(push_module) => push_module.send(token).await,
+            PushModuleEnum::Demo(push_module) => push_module.send(token, body).await,
         }
     }
 
@@ -164,8 +164,8 @@ where
 
     /// trigger push event got provided token
     #[inline(always)]
-    async fn send(&self, token: String) -> PushResult<()> {
-        self.push.send(token).await
+    async fn send(&self, token: String, body: Option<String>) -> PushResult<()> {
+        self.push.send(token, body).await
     }
 
     fn spawn_blocklist_cleanup(&self) {
