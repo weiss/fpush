@@ -5,6 +5,7 @@ use crate::{
     xmpp::error_messages::{send_ack_iq, send_error_iq, send_error_policy_iq},
 };
 use fpush_push::{FpushPushArc, PushRequestError, PushRequestResult};
+use fpush_traits::push::PushPayload;
 
 use futures::{SinkExt, StreamExt};
 use log::{debug, error, info, warn};
@@ -177,7 +178,7 @@ async fn handle_push_result(
 }
 
 #[inline(always)]
-fn parse_token_and_module_id(iq_payload: Element) -> Result<(String, String, Option<String>)> {
+fn parse_token_and_module_id(iq_payload: Element) -> Result<(String, String, Option<PushPayload>)> {
     if let Ok(pubsub) = PubSub::try_from(iq_payload) {
         match pubsub {
             PubSub::Publish {
@@ -185,7 +186,7 @@ fn parse_token_and_module_id(iq_payload: Element) -> Result<(String, String, Opt
                 publish_options: None,
             } => {
                 let Publish { node, items } = pubsub_payload;
-                Ok(("default".to_string(), node.0, parse_body(items)))
+                Ok(("default".to_string(), node.0, parse_summary(items)))
             }
             PubSub::Publish {
                 publish: pubsub_payload,
@@ -202,14 +203,18 @@ fn parse_token_and_module_id(iq_payload: Element) -> Result<(String, String, Opt
                                 return Err(Error::PubSubInvalidPushModuleConfiguration);
                             }
                             if let Some(push_module_id) = field.values.first() {
-                                return Ok((push_module_id.to_string(), node.0, parse_body(items)));
+                                return Ok((
+                                    push_module_id.to_string(),
+                                    node.0,
+                                    parse_summary(items),
+                                ));
                             } else {
                                 unreachable!();
                             }
                         }
                     }
                 }
-                Ok(("default".to_string(), node.0, parse_body(items)))
+                Ok(("default".to_string(), node.0, parse_summary(items)))
             }
             _ => Err(Error::PubSubNonPublish),
         }
@@ -219,7 +224,7 @@ fn parse_token_and_module_id(iq_payload: Element) -> Result<(String, String, Opt
 }
 
 #[inline(always)]
-fn parse_body(pubsub_items: Vec<Item>) -> Option<String> {
+fn parse_summary(pubsub_items: Vec<Item>) -> Option<PushPayload> {
     // Probably overkill to not just check for the first() item:
     let notification = pubsub_items.iter().find_map(|item| {
         item.payload
@@ -228,10 +233,22 @@ fn parse_body(pubsub_items: Vec<Item>) -> Option<String> {
     })?;
     let x = notification.get_child("x", "jabber:x:data")?;
     let data_form = DataForm::try_from(x.to_owned()).ok()?;
-    let body_field = data_form
-        .fields
-        .iter()
-        .find(|field| field.var == "last-message-body")?;
-    debug!("Found last-message-body field: {:?}", body_field);
-    body_field.values.first().cloned()
+    if data_form.form_type == Some("urn:xmpp:push:summary".to_string()) {
+        debug!("Found push summary data form: {:?}", data_form);
+        Some(data_form.fields.iter().fold(
+            PushPayload {
+                ..Default::default()
+            },
+            |mut payload, field| {
+                if field.var == "last-message-sender" {
+                    payload.title = field.values.first().cloned()
+                } else if field.var == "last-message-body" {
+                    payload.body = field.values.first().cloned()
+                }
+                payload
+            },
+        ))
+    } else {
+        None
+    }
 }

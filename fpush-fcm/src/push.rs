@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::Path};
 
-use fpush_traits::push::{PushError, PushResult, PushTrait};
+use fpush_traits::push::{PushError, PushPayload, PushResult, PushTrait};
 
 use async_trait::async_trait;
 use google_fcm1::{
@@ -87,9 +87,9 @@ enum FcmErrorCode {
 #[async_trait]
 impl PushTrait for FpushFcm {
     #[inline(always)]
-    async fn send(&self, token: String, body: Option<String>) -> PushResult<()> {
+    async fn send(&self, token: String, notification: Option<PushPayload>) -> PushResult<()> {
         let req = SendMessageRequest {
-            message: Some(create_push_message(token, body)),
+            message: Some(create_push_message(token, notification)),
             validate_only: None,
         };
 
@@ -122,14 +122,15 @@ impl PushTrait for FpushFcm {
 }
 
 #[inline(always)]
-fn create_push_message(token: String, body: Option<String>) -> Message {
+fn create_push_message(token: String, notification: Option<PushPayload>) -> Message {
+    let PushPayload { title, body } = notification.unwrap_or_default();
     Message {
         data: Some(HashMap::new()),
         token: Some(token),
         notification: Some(Notification {
+            title,
             body,
             image: None,
-            title: None,
         }),
         ..Default::default()
     }

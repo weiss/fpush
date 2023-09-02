@@ -431,6 +431,7 @@ dependencies = [
  "derive_more",
  "env_logger",
  "fpush-push",
+ "fpush-traits",
  "futures",
  "log",
  "serde",

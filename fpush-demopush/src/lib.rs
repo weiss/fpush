@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use fpush_traits::push::{PushError, PushResult, PushTrait};
+use fpush_traits::push::{PushError, PushPayload, PushResult, PushTrait};
 
 use async_trait::async_trait;
 use rand::Rng;
@@ -15,7 +15,7 @@ impl FpushDemoPush {
 
 #[async_trait]
 impl PushTrait for FpushDemoPush {
-    async fn send(&self, _token: String, _body: Option<String>) -> PushResult<()> {
+    async fn send(&self, _token: String, _notification: Option<PushPayload>) -> PushResult<()> {
         let wait_time;
         let return_code;
         {

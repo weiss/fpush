@@ -32,6 +32,7 @@ tokio-xmpp = { git = "https://gitlab.com/xmpp-rs/xmpp-rs.git", default-features 
 xmpp-parsers = { git = "https://gitlab.com/xmpp-rs/xmpp-rs.git", features = ["component"] }
 
 fpush-push = { path = "../fpush-push" }
+fpush-traits = { path = "../fpush-traits" }
 
 async-trait = "^0.1"
 

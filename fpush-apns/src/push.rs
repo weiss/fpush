@@ -4,7 +4,7 @@ use a2::{
     Client, DefaultNotificationBuilder, NotificationBuilder, NotificationOptions, Priority,
     PushType,
 };
-use fpush_traits::push::{PushError, PushResult, PushTrait};
+use fpush_traits::push::{PushError, PushPayload, PushResult, PushTrait};
 
 use async_trait::async_trait;
 use log::{debug, error};
@@ -47,8 +47,9 @@ impl FpushApns {
 #[async_trait]
 impl PushTrait for FpushApns {
     #[inline(always)]
-    async fn send(&self, token: String, body: Option<String>) -> PushResult<()> {
-        let push_title = "New Message".to_string();
+    async fn send(&self, token: String, notification: Option<PushPayload>) -> PushResult<()> {
+        let PushPayload { title, body } = notification.unwrap_or_default();
+        let push_title = title.unwrap_or("New Message".to_string());
         let push_body = body.unwrap_or("New Message?".to_string());
         let notification_builder = DefaultNotificationBuilder::new()
             .set_title(&push_title)

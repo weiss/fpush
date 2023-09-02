@@ -1,3 +1,5 @@
+use fpush_traits::push::PushPayload;
+
 mod error;
 pub use error::{PushRequestError, PushRequestResult};
 mod fpush_config;
@@ -99,10 +101,10 @@ impl FpushPush {
         &self,
         module_id: &str,
         token: String,
-        body: Option<String>,
+        notification: Option<PushPayload>,
     ) -> PushRequestResult<()> {
         if let Some(push_module) = self.push_modules.get(module_id) {
-            handle_push_request(push_module.value(), token, body).await
+            handle_push_request(push_module.value(), token, notification).await
         } else {
             debug!("Unknown push_module requested: {}", module_id);
             Err(PushRequestError::UnknownPushModule)

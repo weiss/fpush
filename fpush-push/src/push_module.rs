@@ -5,10 +5,9 @@ use fpush_ratelimit::{FpushTokenRateLimit, RatelimitSettings};
 use fpush_tokenblocker::BlacklistSettings;
 use fpush_tokenblocker::FpushBlocklist;
 
-use fpush_traits::push::PushResult;
+use fpush_traits::push::{PushPayload, PushResult, PushTrait};
 
 use dashmap::DashMap;
-use fpush_traits::push::PushTrait;
 
 pub type PushModuleMapArc = Arc<DashMap<String, PushModuleEnum>>;
 
@@ -24,14 +23,14 @@ pub enum PushModuleEnum {
 impl PushModuleEnum {
     /// dispatch
     #[inline(always)]
-    pub async fn send(&self, token: String, body: Option<String>) -> PushResult<()> {
+    pub async fn send(&self, token: String, notification: Option<PushPayload>) -> PushResult<()> {
         match self {
             #[cfg(feature = "enable_apns_support")]
-            PushModuleEnum::Apple(push_module) => push_module.send(token, body).await,
+            PushModuleEnum::Apple(push_module) => push_module.send(token, notification).await,
             #[cfg(feature = "enable_fcm_support")]
-            PushModuleEnum::Google(push_module) => push_module.send(token, body).await,
+            PushModuleEnum::Google(push_module) => push_module.send(token, notification).await,
             #[cfg(feature = "enable_demo_support")]
-            PushModuleEnum::Demo(push_module) => push_module.send(token, body).await,
+            PushModuleEnum::Demo(push_module) => push_module.send(token, notification).await,
         }
     }
 
@@ -164,8 +163,8 @@ where
 
     /// trigger push event got provided token
     #[inline(always)]
-    async fn send(&self, token: String, body: Option<String>) -> PushResult<()> {
-        self.push.send(token, body).await
+    async fn send(&self, token: String, notification: Option<PushPayload>) -> PushResult<()> {
+        self.push.send(token, notification).await
     }
 
     fn spawn_blocklist_cleanup(&self) {
