@@ -1,10 +1,10 @@
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 
 use fpush_traits::push::{PushError, PushPayload, PushResult, PushTrait};
 
 use async_trait::async_trait;
 use google_fcm1::{
-    api::{Message, Notification, SendMessageRequest},
+    api::{AndroidConfig, Message, Notification, SendMessageRequest},
     oauth2, FirebaseCloudMessaging,
 };
 use log::{error, warn};
@@ -125,8 +125,11 @@ impl PushTrait for FpushFcm {
 fn create_push_message(token: String, notification: Option<PushPayload>) -> Message {
     let PushPayload { title, body } = notification.unwrap_or_default();
     Message {
-        data: Some(HashMap::new()),
         token: Some(token),
+        android: Some(AndroidConfig {
+            priority: Some("high".to_string()),
+            ..Default::default()
+        }),
         notification: Some(Notification {
             title,
             body,
